@@ -1,4 +1,4 @@
-package main
+package nearlyfreespeech
 
 import (
 	"bytes"
