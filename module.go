@@ -162,6 +162,62 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 	return nil, fmt.Errorf("after the update, could not find the new record")
 }
 
+func (p *Provider) AppendRecords(ctx context.Context, zone string, records []libdns.Record) ([]libdns.Record, error) {
+	if len(records) == 0 {
+		return nil, nil
+	}
+	if len(records) > 1 {
+		// There is no way to avoid partial state updates in case of an error.
+		return nil, fmt.Errorf("this DNS provider can only alter one record at a time")
+	}
+	r := records[0]
+
+	_, err := p.doPost(ctx, fmt.Sprintf("/dns/%v/addRR", zone), nfsRecord{
+		Name: r.Name,
+		Type: r.Type,
+		Data: r.Value,
+		TTL:  int(r.TTL.Seconds()),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to add DNS record: %v", err)
+	}
+
+	newRecords, err := p.GetRecords(ctx, zone)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get new records after a successful update: %v", err)
+	}
+
+	for _, nr := range newRecords {
+		if nr.Name == r.Name && nr.Type == r.Type && nr.Value == r.Value {
+			return []libdns.Record{nr}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("after the update, could not find the new record")
+}
+
+func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []libdns.Record) ([]libdns.Record, error) {
+	if len(records) == 0 {
+		return nil, nil
+	}
+	if len(records) > 1 {
+		// There is no way to avoid partial state updates in case of an error.
+		return nil, fmt.Errorf("this DNS provider can only alter one record at a time")
+	}
+	r := records[0]
+
+	_, err := p.doPost(ctx, fmt.Sprintf("/dns/%v/removeRR", zone), nfsRecord{
+		Name: r.Name,
+		Type: r.Type,
+		Data: r.Value,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to remove DNS record: %v", err)
+	}
+
+	return records, nil
+}
+
 type nfsRecord struct {
 	Name string `json:"name" schema:"name"`
 	Type string `json:"type" schema:"type"`
