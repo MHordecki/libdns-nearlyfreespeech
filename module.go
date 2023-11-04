@@ -27,12 +27,12 @@ type (
 const authHeaderName = "X-NFSN-Authentication"
 
 type Provider struct {
+	Username string
+	APIKey   string
+
 	clock  clock
 	salter salter
 	apiURL string
-
-	username string
-	apiKey   string
 }
 
 func NewProvider(username, apiKey string) *Provider {
@@ -40,8 +40,8 @@ func NewProvider(username, apiKey string) *Provider {
 		clock:    time.Now,
 		salter:   generateSalt,
 		apiURL:   "https://api.nearlyfreespeech.net",
-		username: username,
-		apiKey:   apiKey,
+		Username: username,
+		APIKey:   apiKey,
 	}
 }
 
@@ -50,7 +50,7 @@ func (p *Provider) prepareRequest(ctx context.Context, method, path string, cont
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare HTTP request: %v", err)
 	}
-	authHeader, err := generateAuthHeader(p.clock, p.salter, p.username, p.apiKey, path, content)
+	authHeader, err := generateAuthHeader(p.clock, p.salter, p.Username, p.APIKey, path, content)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate auth header: %v", err)
 	}
