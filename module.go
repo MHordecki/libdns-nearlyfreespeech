@@ -213,7 +213,7 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []lib
 	}
 	r := records[0]
 
-	_, err := p.doPost(ctx, fmt.Sprintf("/dns/%v/removeRR", zone), nfsRecord{
+	_, err := p.doDNS(ctx, zone, "removeRR", &nfsRecord{
 		Name: r.Name,
 		Type: r.Type,
 		Data: r.Value,
@@ -229,7 +229,7 @@ type nfsRecord struct {
 	Name string `json:"name" schema:"name"`
 	Type string `json:"type" schema:"type"`
 	Data string `json:"data" schema:"data"`
-	TTL  int    `json:"ttl" schema:"ttl"`
+	TTL  int    `json:"ttl" schema:"ttl,omitempty"`
 	Aux  int    `json:"aux,omitempty" schema:"aux,omitempty"`
 }
 
