@@ -9,12 +9,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/schema"
 	"github.com/libdns/libdns"
 )
@@ -103,8 +102,16 @@ func (p *Provider) doPost(ctx context.Context, path string, value any) ([]byte, 
 	return p.finishRequest(req)
 }
 
+func (p *Provider) doDNS(ctx context.Context, zone, command string, record *nfsRecord) ([]byte, error) {
+	path := fmt.Sprintf("/dns/%v/%v", strings.TrimSuffix(zone, "."), command)
+	if record == nil {
+		return p.doPost(ctx, path, nil)
+	}
+	return p.doPost(ctx, path, *record)
+}
+
 func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record, error) {
-	b, err := p.doPost(ctx, fmt.Sprintf("/dns/%v/listRRs", zone), nil)
+	b, err := p.doDNS(ctx, zone, "listRRs", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +145,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 	}
 
 	r := records[0]
-	_, err := p.doPost(ctx, fmt.Sprintf("/dns/%v/replaceRR", zone), nfsRecord{
+	_, err := p.doDNS(ctx, zone, "replaceRR", &nfsRecord{
 		Name: r.Name,
 		Type: r.Type,
 		Data: r.Value,
@@ -172,7 +179,7 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, records []lib
 	}
 	r := records[0]
 
-	_, err := p.doPost(ctx, fmt.Sprintf("/dns/%v/addRR", zone), nfsRecord{
+	_, err := p.doDNS(ctx, zone, "addRR", &nfsRecord{
 		Name: r.Name,
 		Type: r.Type,
 		Data: r.Value,
@@ -251,23 +258,4 @@ func generateAuthHeader(clock clock, salter salter, username, apiKey, requestPat
 	hashInput := fmt.Sprintf("%v;%v;%v;%v;%v;%v", username, timestamp, salt, apiKey, requestPath, sha1Hash(body))
 	hash := sha1Hash([]byte(hashInput))
 	return fmt.Sprintf("%v;%v;%v;%v", username, timestamp, salt, hash), nil
-}
-
-func main() {
-	ctx := context.Background()
-	p := NewProvider("mhordecki", "Hsirbd3snaHUUPJN")
-	r, err := p.SetRecords(ctx, "ppaxax.com", []libdns.Record{
-		{
-			ID:       "bleh",
-			Type:     "A",
-			Name:     "bleh",
-			Value:    "127.0.0.3",
-			TTL:      time.Hour,
-			Priority: 0,
-		},
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	spew.Dump(r)
 }
